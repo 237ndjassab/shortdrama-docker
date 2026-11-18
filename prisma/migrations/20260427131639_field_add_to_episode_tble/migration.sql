@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "episode" ADD COLUMN     "likesCount" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "views" INTEGER NOT NULL DEFAULT 0;

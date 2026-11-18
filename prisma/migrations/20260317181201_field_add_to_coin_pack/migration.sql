@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE "CoinPack" ADD COLUMN     "bonusCoins" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "isPopular" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN     "purchaseCount" INTEGER NOT NULL DEFAULT 0;

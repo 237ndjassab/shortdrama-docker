@@ -1,0 +1,52 @@
+
+services:
+  db:
+    image: postgres:17
+    container_name: shortdrama-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - shortdrama_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: shortdrama-mailpit
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8025:8025"
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: "1"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "1"
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: shortdrama-api:1.0
+    container_name: shortdrama-api
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3001:3000"
+    env_file:
+      - .env
+    environment:
+      APP_HOST: 0.0.0.0
+      APP_PORT: 3000
+      DATABASE_URL: ${DATABASE_URL}
+      MAIL_HOST: mailpit
+    depends_on:
+      db:
+        condition: service_healthy
+    # On attend que PostgreSQL soit prêt avant de démarrer l'API.
+
+volumes:
+  shortdrama_postgres_data:
+    name: shortdrama_postgres_data

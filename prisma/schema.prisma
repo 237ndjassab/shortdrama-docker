@@ -1,0 +1,578 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Utilisateur {
+  id          Int       @id @default(autoincrement())
+  name        String
+  email       String    @unique
+  password    String
+  avatar_url  String
+  biography   String?
+  country     String?
+  cover_url   String?
+  lastLoginAt DateTime?
+  phone       String?
+  isSystem    Boolean   @default(false)
+
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  otpExpiresAt DateTime?
+  otpcode      Int?
+  deletedAt    DateTime?
+  status       UserStatus @default(ActiveUser)
+
+  creatorProfile CreatorProfile?
+  creatorStats CreatorStats?
+
+  favoriteSeries FavoriteSeries[]
+  watchHistory UserEpisodeHistory[]
+  likes     Like[]
+  episode   Episode[]
+  purchases Purchase[]
+  roles     UserHasRole[]
+  series    Series[]
+  creatorRevenues EpisodeRevenue[] @relation("CreatorRevenue")
+  buyerRevenues EpisodeRevenue[] @relation("BuyerRevenue")
+  payments  Payment[]
+  notifications Notification[]
+  wallet    Wallet?
+
+  @@map("utilisateurs")
+}
+
+model UserEpisodeHistory {
+  id Int @id @default(autoincrement())
+
+  userId Int
+  episodeId Int
+
+  // 🔥 tracking comportement utilisateur
+  watchedDuration Int @default(0)
+  completed       Boolean @default(false)
+  rewatchCount    Int @default(0)
+
+  liked           Boolean @default(false)
+  skipped         Boolean @default(false)
+
+  progressPercent Float @default(0)
+
+  firstWatchedAt DateTime @default(now())
+  lastWatchedAt  DateTime @updatedAt
+
+  user    Utilisateur @relation(fields: [userId], references: [id], onDelete: Cascade)
+  episode Episode     @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, episodeId])
+
+  @@map("user_episode_history")
+}
+
+model CreatorProfile {
+  id          Int      @id @default(autoincrement())
+
+  userId      Int      @unique
+  user        Utilisateur @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  status      CreatorStatus @default(PENDING)
+
+  biography         String?
+  country         String?
+  initialReason      String?
+  portfolio   String?
+  youtubeUrl  String?
+  instagramUrl String?
+
+  rejectionReason String?
+
+  requestedAt DateTime @default(now())
+  reviewedAt  DateTime?
+
+
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("creator_profile")
+}
+
+model CreatorStats {
+  id         Int @id @default(autoincrement())
+
+  userId     Int @unique
+  user       Utilisateur @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  totalViews Int @default(0)
+  totalLikes Int @default(0)
+  totalSales Int @default(0)
+  earnings   Decimal @default(0) @db.Decimal(12,2)
+}
+
+model Like {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  episodeId  Int      // 👈 Le like est ici
+
+  user       Utilisateur     @relation(fields: [userId], references: [id])
+  episode    Episode  @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, episodeId])
+}
+
+model CoinPack {
+  id         Int     @id @default(autoincrement())
+  name       String  @unique
+  coins      Int
+  price      Decimal @default(0) @db.Decimal(12, 2)
+  isActive   Boolean @default(true)
+  image      String?
+  isPopular  Boolean @default(false)
+  bonusCoins Int     @default(0)
+
+  purchaseCount Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("coinpack")
+}
+
+model Wallet {
+  id                Int           @id @default(autoincrement())
+  balanceCoins      Int           @default(0)
+  totalEarned       Decimal       @default(0) @db.Decimal(12, 2)
+  totalSpent        Decimal       @default(0.00) @db.Decimal(12, 2)
+  lastTransactionAt DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  userId            Int           @unique
+  balance           Decimal?      @default(0.00) @db.Decimal(12, 2)
+  transaction       Transaction[]
+  user              Utilisateur   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("wallet")
+}
+
+model Transaction {
+  id                 Int               @id @default(autoincrement())
+  amount             Decimal           @db.Decimal(12, 2)
+  price              Decimal?          @db.Decimal(12, 2) // 💰 prix payé
+  type               TransactionType
+  source             TransactionSource
+  walletId           Int
+  episodeId          Int?
+  createdAt          DateTime          @default(now())
+  balanceCashAfter   Decimal?          @db.Decimal(12, 2)
+  balanceCashBefore  Decimal?          @db.Decimal(12, 2)
+  balanceCoinsAfter  Int?
+  balanceCoinsBefore Int?
+  episode            Episode?          @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+  wallet             Wallet            @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  @@map("transaction")
+}
+
+model EpisodeRevenue {
+  id Int @id @default(autoincrement())
+
+  episodeId Int
+  creatorId Int
+  buyerId Int
+
+  coinsPaid Int
+
+  grossAmount Decimal @db.Decimal(12,2)
+
+  commissionAmount Decimal @db.Decimal(12,2)
+
+  creatorAmount Decimal @db.Decimal(12,2)
+
+  createdAt DateTime @default(now())
+
+  episode Episode @relation(fields:[episodeId], references:[id], onDelete: Cascade)
+  creator Utilisateur @relation("CreatorRevenue", fields:[creatorId], references:[id])
+  buyer Utilisateur @relation("BuyerRevenue", fields:[buyerId], references:[id])
+
+  @@index([episodeId])
+  @@index([creatorId])
+  @@index([buyerId])
+
+  @@map("episode_revenues")
+}
+
+model Category {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  badge       String?
+  isActive    Boolean  @default(true)
+  series      Series[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("category")
+}
+
+model FavoriteSeries {
+  id        Int      @id @default(autoincrement())
+
+  userId    Int
+  seriesId  Int
+
+  createdAt DateTime @default(now())
+
+  user      Utilisateur @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  series    Series @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, seriesId])
+
+  @@map("favorite_series")
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+
+  userId    Int
+  user      Utilisateur @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title     String
+  message   String   @db.Text
+
+  type      NotificationType
+
+  isRead    Boolean  @default(false)
+
+  metadata  Json?
+
+  createdAt DateTime @default(now())
+}
+
+enum NotificationType {
+  CREATOR_APPROVED
+  CREATOR_REJECTED
+  NEW_EPISODE
+  PURCHASE
+  SYSTEM
+}
+
+model Slide {
+  id              Int        @id @default(autoincrement())
+
+  // 🔥 contenu
+  title           String
+  description     String?    @db.Text
+
+  // 🔥 image/video
+  imageUrl        String
+  imagePublicId   String?
+
+  streamingUrl    String?
+
+  trailerUrl      String?
+  trailerPublicId String?
+
+  // 🔥 CTA
+  buttonText      String?
+  buttonLink      String?
+
+  // 🔥 navigation dynamique
+  type            SlideType  @default(SERIE)
+
+  // 🔥 relations optionnelles
+  serieId         Int?
+  episodeId       Int?
+
+  serie           Series?    @relation(fields: [serieId], references: [id], onDelete: SetNull)
+  episode         Episode?   @relation(fields: [episodeId], references: [id], onDelete: SetNull)
+
+  // 🔥 affichage
+  order           Int        @default(0)
+  isActive        Boolean    @default(true)
+  isFeatured      Boolean    @default(false)
+
+  // 🔥 analytics
+  clickCount      Int        @default(0)
+  viewCount       Int        @default(0)
+
+  // 🔥 publication programmée
+  startDate       DateTime?
+  endDate         DateTime?
+
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  @@map("slides")
+}
+
+enum SlideType {
+  SERIE
+  EPISODE
+  PREMIUM
+  COINPACK
+  EXTERNAL_LINK
+  ANNOUNCEMENT
+}
+
+model Series {
+  id            Int     @id @default(autoincrement())
+  title         String
+  description   String? @db.Text
+  language      String?
+  countryOrigin String?
+
+  thumbnail     String?
+  trailerUrl    String?
+
+  thumbnailPublicId String?
+  trailerPublicId   String?
+
+  isActive      Boolean @default(true)
+  isPublished   Boolean @default(false)
+
+  // 🔥 COMPTEURS AGGRÉGÉS (Pour le tri sur la Home)
+  totalLikes     Int      @default(0)
+  totalViews     Int      @default(0)
+  isFeatured     Boolean  @default(false)
+
+  creatorId Int
+  creator   Utilisateur @relation(fields: [creatorId], references: [id])
+
+  categoryId Int
+  category   Category @relation(fields: [categoryId], references: [id])
+
+  favoritedBy FavoriteSeries[]
+  seasons Season[]
+  slides Slide[]
+
+  publishedAt DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("series")
+}
+
+model Season {
+  id          Int     @id @default(autoincrement())
+  number      Int
+  description String? @db.Text
+  isActive    Boolean @default(true)
+
+  serieId  Int
+  serie    Series    @relation(fields: [serieId], references: [id], onDelete: Cascade)
+  episodes Episode[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([serieId, number]) //evite les doublons ex: saison 1 deux fois
+  @@map("season")
+}
+
+model Episode {
+  id              Int           @id @default(autoincrement())
+  title           String
+  description     String
+  isActive        Boolean       @default(true)
+
+  videoUrl        String?       // mp4 classique
+  streamingUrl    String?       // 🔥 HLS (.m3u8)
+  thumbnail       String?       // 🔥 image auto depuis vidéo
+
+  videoPublicId   String?       // 🔥 pour delete Cloudinary
+  thumbnailPublicId String?
+
+  duration        Int           @default(0)
+  priceCoins      Int           @default(0)
+  isPublished     Boolean       @default(true)
+
+  episodeNumber   Int           @default(1)          // 🔥 ordre dans la saison
+
+  views           Int           @default(0)
+  likesCount      Int           @default(0)
+  purchaseCount  Int           @default(0)
+
+  creatorId       Int
+  seasonId        Int
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  watchHistory    UserEpisodeHistory[]
+  likes           Like[]
+  revenues        EpisodeRevenue[]
+  slides          Slide[]
+
+  creator         Utilisateur   @relation(fields: [creatorId], references: [id])
+  season          Season        @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  transactions    Transaction[]
+  purchases       Purchase[]
+
+  @@unique([seasonId, episodeNumber]) // 🔥 important
+  @@map("episode")
+}
+
+model Purchase {
+  id        Int         @id @default(autoincrement())
+  userId    Int
+  episodeId Int
+  createdAt DateTime    @default(now())
+  episode   Episode     @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+  user      Utilisateur @relation(fields: [userId], references: [id])
+
+  @@unique([userId, episodeId])
+  @@map("purchases")
+}
+
+model Payment {
+  id Int @id @default(autoincrement())
+
+  userId Int
+  user Utilisateur @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // 💰 argent réel payé
+  amount Decimal @db.Decimal(12, 2)
+
+  currency String @default("XAF")
+
+  // 🪙 coins achetés
+  coins Int
+
+  // 📱 téléphone client
+  phoneNumber String
+
+  // 🔥 Campay
+  provider PaymentProvider @default(CAMPAY)
+
+  externalReference String @unique
+
+  providerReference String?
+
+  // 🔥 status
+  status PaymentStatus @default(PENDING)
+
+  // 🔥 MTN / ORANGE
+  operator MobileOperator?
+
+  // 🔥 infos utiles
+  description String?
+
+  failureReason String?
+
+  // 🔥 webhook
+  webhookReceived Boolean @default(false)
+
+  webhookReceivedAt DateTime?
+
+  // 🔥 response brute Campay
+  metadata Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([externalReference])
+  @@index([status])
+
+  @@map("payments")
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  EXPIRED
+  CANCELLED
+}
+enum PaymentProvider {
+  CAMPAY
+}
+enum MobileOperator {
+  MTN
+  ORANGE
+}
+
+model Role {
+  id           Int                 @id @default(autoincrement())
+  name         String
+  roleKey      String              @unique
+  description  String?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  permissions  RoleHasPermission[]
+  userHasRoles UserHasRole[]
+
+  @@map("roles")
+}
+
+model UserHasRole {
+  userId   Int
+  roleId   Int
+  assignAt DateTime    @default(now())
+  role     Role        @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  user     Utilisateur @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@map("user_has_role")
+}
+
+model Permission {
+  id            Int                 @id @default(autoincrement())
+  name          String
+  permissionKey String              @unique
+  description   String?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  roles         RoleHasPermission[]
+
+  @@map("permissions")
+}
+
+model RoleHasPermission {
+  roleId       Int
+  permissionId Int
+  assignAt     DateTime   @default(now())
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_has_permission")
+}
+
+enum UserStatus {
+  ActiveUser
+  Banned
+  InactiveUser
+}
+
+enum CategoryStatus {
+  Active
+  Inactive
+}
+
+enum TransactionSource {
+  DEPOSIT
+  WITHDRAW
+  PURCHASE
+  COMMISSION
+  SELL_EPISODE
+  FREE_PACK
+  COIN_PURCHASE
+}
+
+enum TransactionType {
+  CREDIT
+  DEBIT
+}
+
+enum CreatorStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}

@@ -1,0 +1,20 @@
+# Dépendances
+node_modules
+npm-debug.log*
+
+# Secrets et variables d'environnement
+.env
+.env.*
+!.env.example
+
+# Git
+.git
+.gitignore
+
+# Fichiers temporaires
+*.log
+.DS_Store
+coverage/
+
+# Fichiers générés par Prisma
+src/generated/prisma/

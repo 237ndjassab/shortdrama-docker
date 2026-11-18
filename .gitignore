@@ -1,0 +1,16 @@
+# Secrets et variables locales
+.env
+
+# Dépendances
+node_modules/
+
+# Fichiers générés par Prisma
+/src/generated/prisma
+
+# Sauvegardes locales de la base de données
+backups/*.dump
+
+# Fichiers téléversés par les utilisateurs
+/public/uploads/*
+!/public/uploads/users/
+!/public/uploads/users/default.png
